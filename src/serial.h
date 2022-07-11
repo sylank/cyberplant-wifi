@@ -1,5 +1,3 @@
-#include <Arduino.h>
-
 #define SERIAL_PRINTF_MAX_BUFF 256
 #define F_PRECISION 6
 
@@ -88,9 +86,4 @@ void serialPrintf(const char *fmt, ...)
 
     va_end(pargs);
     Serial.println(buf);
-}
-
-void debugSerialPrintf(const char *fmt, ...)
-{
-    serialPrintf(fmt);
 }

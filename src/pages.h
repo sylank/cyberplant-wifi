@@ -1,5 +1,3 @@
-#include <Arduino.h>
-
 const char MAIN_page[] PROGMEM = R"=====(
 <!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title>Plant Healthcheck Station Config</title></head><body style="display: flex;justify-content: center;flex-direction: column;align-content: center;align-items: center;">
 <h1>Plant Healthcheck Station Config</h1>

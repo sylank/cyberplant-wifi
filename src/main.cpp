@@ -1,5 +1,3 @@
-#include <Arduino.h>
-
 #include "ESP8266WiFi.h"
 #include <ESP8266WebServer.h>
 #include <ESP8266HTTPClient.h>
@@ -53,22 +51,22 @@ void processSerialCommand(const String &cmd)
 void configState()
 {
   WiFi.disconnect();
-  debugSerialPrintf("Setting soft-AP ... ");
+  serialPrintf("Setting soft-AP ... ");
   boolean result = WiFi.softAP("CyberPlant echo - station", "");
   if (!result)
   {
-    debugSerialPrintf("Failed!");
+    serialPrintf("Failed!");
     return;
   }
 
-  debugSerialPrintf("Ready");
+  serialPrintf("Ready");
   IPAddress IP = WiFi.softAPIP();
-  debugSerialPrintf("AP IP address: ");
-  debugSerialPrintf(IP.toString().c_str());
+  serialPrintf("AP IP address: ");
+  serialPrintf(IP.toString().c_str());
 
   server.begin();
 
-  debugSerialPrintf("HTTP server started");
+  serialPrintf("HTTP server started");
 
   wifiStatus = true;
 }
@@ -83,19 +81,19 @@ void operationState()
 
   if (isConnected)
   {
-    debugSerialPrintf("Connection established!");
-    debugSerialPrintf("IP address:\t");
-    debugSerialPrintf(WiFi.localIP().toString().c_str());
+    serialPrintf("Connection established!");
+    serialPrintf("IP address:\t");
+    serialPrintf(WiFi.localIP().toString().c_str());
 
     WiFi.setAutoConnect(true);
     WiFi.setAutoReconnect(true);
     WiFi.persistent(true);
 
-    debugSerialPrintf("#WIFI_CONNECTED!%s", WiFi.localIP().toString().c_str());
+    serialPrintf("#WIFI_CONNECTED!%s", WiFi.localIP().toString().c_str());
   }
   else
   {
-    debugSerialPrintf("#WIFI_CONNECTION_FAILED");
+    serialPrintf("#WIFI_CONNECTION_FAILED");
   }
 }
 
@@ -114,8 +112,8 @@ bool connectToNetwork(const String &ssid, const String &password)
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(1000);
-    debugSerialPrintf("%d", ++i);
-    debugSerialPrintf(" ");
+    serialPrintf("%d", ++i);
+    serialPrintf(" ");
 
     if (i == 10)
     {
@@ -148,20 +146,20 @@ bool sendDataToServer(const String &message)
   http.addHeader("Content-Type", "application/json");
   int httpResponseCode = http.POST(postMessage);
 
-  debugSerialPrintf("HTTP Response code: ");
-  debugSerialPrintf("%d", httpResponseCode);
+  serialPrintf("HTTP Response code: ");
+  serialPrintf("%d", httpResponseCode);
 
   http.end();
 
   if (httpResponseCode >= 200 && httpResponseCode <= 299)
   {
-    debugSerialPrintf("#TRANSPORT_OK");
+    serialPrintf("#TRANSPORT_OK");
 
     return true;
   }
   else
   {
-    debugSerialPrintf("#TRANSPORT_FAILED!%d", httpResponseCode);
+    serialPrintf("#TRANSPORT_FAILED!%d", httpResponseCode);
 
     return false;
   }
@@ -179,16 +177,17 @@ void handleDone()
 {
   if (!server.hasArg("ssid") || !server.hasArg("password") || server.arg("ssid") == NULL || server.arg("password") == NULL)
   {
+    Serial.println("done2");
     String s = ERROR_page;
     server.send(400, "text/html", s);
 
-    debugSerialPrintf("#CONFIG_FAILED");
+    serialPrintf("#CONFIG_FAILED");
     return;
   }
 
   if (server.hasArg("sm-air") || server.hasArg("sm-water") || server.arg("sm-air") != NULL || server.arg("sm-water") != NULL)
   {
-    debugSerialPrintf("#CUSTOM_CFG!%s!%s", server.arg("sm-air").c_str(), server.arg("sm-water").c_str());
+    serialPrintf("#CUSTOM_CFG!%s!%s", server.arg("sm-air").c_str(), server.arg("sm-water").c_str());
   }
 
   g_ssid = server.arg("ssid");
@@ -197,7 +196,7 @@ void handleDone()
   String s = DONE_page;
   server.send(200, "text/html", s);
 
-  debugSerialPrintf("#CONFIG_DONE");
+  serialPrintf("#CONFIG_DONE");
 
   delay(3000);
   operationState();
@@ -242,7 +241,7 @@ void handleButton()
 {
   int resetValue = digitalRead(RESET_BUTTON_PIN);
 
-  if (resetValue == HIGH)
+  if (resetValue == LOW)
   {
     if (!resetBtnPrestate)
     {
@@ -259,11 +258,11 @@ void displayStatus()
 {
   if (wifiStatus)
   {
-    digitalWrite(STATUS_LED_PIN, LOW);
+    digitalWrite(STATUS_LED_PIN, HIGH);
   }
   else
   {
-    digitalWrite(STATUS_LED_PIN, HIGH);
+    digitalWrite(STATUS_LED_PIN, LOW);
   }
 }
 
@@ -283,7 +282,7 @@ void setup()
   pinMode(RESET_BUTTON_PIN, INPUT);
   pinMode(STATUS_LED_PIN, OUTPUT);
 
-  debugSerialPrintf("#MODULE_READY");
+  serialPrintf("#MODULE_READY");
 }
 
 void loop()
