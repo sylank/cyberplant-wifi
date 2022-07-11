@@ -81,19 +81,19 @@ void operationState()
 
   if (isConnected)
   {
-    serialPrintf("Connection established!");
-    serialPrintf("IP address:\t");
-    serialPrintf(WiFi.localIP().toString().c_str());
+        serialPrintf("Connection established!");
+        serialPrintf("IP address:\t");
+        serialPrintf(WiFi.localIP().toString().c_str());
 
     WiFi.setAutoConnect(true);
     WiFi.setAutoReconnect(true);
     WiFi.persistent(true);
 
-    serialPrintf("#WIFI_CONNECTED!%s", WiFi.localIP().toString().c_str());
+        serialPrintf("#WIFI_CONNECTED!%s", WiFi.localIP().toString().c_str());
   }
   else
   {
-    serialPrintf("#WIFI_CONNECTION_FAILED");
+        serialPrintf("#WIFI_CONNECTION_FAILED");
   }
 }
 
@@ -112,8 +112,8 @@ bool connectToNetwork(const String &ssid, const String &password)
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(1000);
-    serialPrintf("%d", ++i);
-    serialPrintf(" ");
+        serialPrintf("%d", ++i);
+        serialPrintf(" ");
 
     if (i == 10)
     {
@@ -192,6 +192,7 @@ void handleDone()
 
   g_ssid = server.arg("ssid");
   g_password = server.arg("password");
+
 
   String s = DONE_page;
   server.send(200, "text/html", s);
