@@ -10,10 +10,6 @@
 #define RESET_BUTTON_PIN 0
 #define STATUS_LED_PIN 2
 
-void handleRoot();
-void handleLogin();
-void handleNotFound();
-
 String readFromSerialIfAvailable();
 void processSerialCommand(const String &cmd);
 void configState(const String &message);
@@ -34,6 +30,27 @@ String g_password = "";
 bool resetBtnPrestate = false;
 bool wifiStatus = false;
 
+String soilMoistureValue = "666";
+
+String getMessageElement(const String &data, char separator, int index)
+{
+  int found = 0;
+  int strIndex[] = {0, -1};
+  int maxIndex = data.length() - 1;
+
+  for (int i = 0; i <= maxIndex && found <= index; i++)
+  {
+    if (data.charAt(i) == separator || i == maxIndex)
+    {
+      found++;
+      strIndex[0] = strIndex[1] + 1;
+      strIndex[1] = (i == maxIndex) ? i + 1 : i;
+    }
+  }
+
+  return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
+}
+
 void processSerialCommand(const String &cmd)
 {
   if (cmd.length() == 0)
@@ -41,10 +58,14 @@ void processSerialCommand(const String &cmd)
     return;
   }
 
-  // #678;58;25 OR
+  serialPrintf("received");
+
+  // #678;58;25
   if (cmd.indexOf("#") == 0)
   {
-    // ...
+    serialPrintf("cmd");
+    soilMoistureValue = getMessageElement(cmd, ';', 0).substring(1, cmd.indexOf(";"));
+    Serial.println(soilMoistureValue);
   }
 }
 
@@ -81,19 +102,19 @@ void operationState()
 
   if (isConnected)
   {
-        serialPrintf("Connection established!");
-        serialPrintf("IP address:\t");
-        serialPrintf(WiFi.localIP().toString().c_str());
+    serialPrintf("Connection established!");
+    serialPrintf("IP address:\t");
+    serialPrintf(WiFi.localIP().toString().c_str());
 
     WiFi.setAutoConnect(true);
     WiFi.setAutoReconnect(true);
     WiFi.persistent(true);
 
-        serialPrintf("#WIFI_CONNECTED!%s", WiFi.localIP().toString().c_str());
+    serialPrintf("#WIFI_CONNECTED!%s", WiFi.localIP().toString().c_str());
   }
   else
   {
-        serialPrintf("#WIFI_CONNECTION_FAILED");
+    serialPrintf("#WIFI_CONNECTION_FAILED");
   }
 }
 
@@ -112,8 +133,8 @@ bool connectToNetwork(const String &ssid, const String &password)
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(1000);
-        serialPrintf("%d", ++i);
-        serialPrintf(" ");
+    serialPrintf("%d", ++i);
+    serialPrintf(" ");
 
     if (i == 10)
     {
@@ -171,6 +192,11 @@ void handleRoot()
 {
   String s = MAIN_page;
   server.send(200, "text/html", s);
+}
+
+void handleSoilMoistureValueRead()
+{
+  server.send(200, "text/plain", soilMoistureValue);
 }
 
 void handleDone()
@@ -278,6 +304,7 @@ void setup()
 
   server.on("/", HTTP_GET, handleRoot);
   server.on("/config", HTTP_POST, handleDone);
+  server.on("/soil-moisture-value", HTTP_GET, handleSoilMoistureValueRead);
   server.onNotFound(handleNotFound);
 
   pinMode(RESET_BUTTON_PIN, INPUT);

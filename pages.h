@@ -14,6 +14,7 @@ const char MAIN_page[] PROGMEM = R"=====(
 </div>
 <div style="height: 1px;background: black;margin-top: 20px;margin-bottom: 20px;width: 100%;"></div>
 <p style="margin-top: 0px;">Now you can configure the Soil Moisture sensor's base values. Every sensors are different a bit, so you have to configure the 100% (max) value and the 0% (min) value.</p>
+<h2 id="sm-value-cap">0</h2>
 <p style="margin-bottom: 0px;">Air Value: please clean the soil moisture sensor, wipe it off. Then write the value into the "Air value" box.</p>
 <div style="display: flex;flex-direction: column;width: 100%;margin-bottom: 20px;">
 <p style="margin-bottom: 5px;">Air value</p>
@@ -26,6 +27,31 @@ const char MAIN_page[] PROGMEM = R"=====(
 </div>
 <input type="submit" value="Finish" style="background: rgb(99 221 227);border: none;width: 100px;height: 50px;font-size: 16px;margin-top: 30px;cursor: pointer;">
 </form>
+<script>
+  //https://httpbin.org/get
+
+  function fetchHttp() {
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", "/soil-moisture-value", true);
+    xhr.onload = function (e) {
+      if (xhr.readyState === 4) {
+        if (xhr.status === 200) {
+          document.getElementById("sm-value-cap").innerHTML =xhr.responseText;
+        } else {
+          console.error(xhr.statusText);
+        }
+      }
+    };
+    xhr.onerror = function (e) {
+      console.error(xhr.statusText);
+    };
+    xhr.send(null);
+
+    setTimeout(fetchHttp, 5000);
+  };
+
+  fetchHttp();
+</script>
 </body>
 </html>
 )=====";
