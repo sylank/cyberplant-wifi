@@ -47,7 +47,7 @@ const char MAIN_page[] PROGMEM = R"=====(
     };
     xhr.send(null);
 
-    setTimeout(fetchHttp, 5000);
+    setTimeout(fetchHttp, 1000);
   };
 
   fetchHttp();

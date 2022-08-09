@@ -1,6 +1,7 @@
 #include "ESP8266WiFi.h"
-#include <ESP8266WebServer.h>
 #include <ESP8266HTTPClient.h>
+#include <ESPAsyncTCP.h> // https://github.com/me-no-dev/ESPAsyncWebServer
+#include <ESPAsyncWebServer.h> // https://randomnerdtutorials.com/esp8266-nodemcu-async-web-server-espasyncwebserver-library/
 #include <stdarg.h>
 
 #include "pages.h"
@@ -22,7 +23,7 @@ bool connectToNetwork(const String &ssid, const String &password);
 void handleButton();
 void displayStatus();
 
-ESP8266WebServer server(80);
+AsyncWebServer server(80);
 
 String g_ssid = "";
 String g_password = "";
@@ -58,14 +59,10 @@ void processSerialCommand(const String &cmd)
     return;
   }
 
-  serialPrintf("received");
-
   // #678;58;25
   if (cmd.indexOf("#") == 0)
   {
-    serialPrintf("cmd");
     soilMoistureValue = getMessageElement(cmd, ';', 0).substring(1, cmd.indexOf(";"));
-    Serial.println(soilMoistureValue);
   }
 }
 
@@ -85,8 +82,6 @@ void configState()
   serialPrintf("AP IP address: ");
   serialPrintf(IP.toString().c_str());
 
-  server.begin();
-
   serialPrintf("HTTP server started");
 
   wifiStatus = true;
@@ -94,7 +89,7 @@ void configState()
 
 void operationState()
 {
-  server.stop();
+//  server.stop();
   WiFi.softAPdisconnect(true);
   WiFi.setAutoReconnect(false);
 
@@ -147,7 +142,7 @@ bool connectToNetwork(const String &ssid, const String &password)
 
 void idleState()
 {
-  server.stop();
+//  server.stop();
   WiFi.softAPdisconnect(true);
   WiFi.setAutoReconnect(false);
   WiFi.disconnect();
@@ -186,53 +181,6 @@ bool sendDataToServer(const String &message)
   }
 
   return false;
-}
-
-void handleRoot()
-{
-  String s = MAIN_page;
-  server.send(200, "text/html", s);
-}
-
-void handleSoilMoistureValueRead()
-{
-  server.send(200, "text/plain", soilMoistureValue);
-}
-
-void handleDone()
-{
-  if (!server.hasArg("ssid") || !server.hasArg("password") || server.arg("ssid") == NULL || server.arg("password") == NULL)
-  {
-    Serial.println("done2");
-    String s = ERROR_page;
-    server.send(400, "text/html", s);
-
-    serialPrintf("#CONFIG_FAILED");
-    return;
-  }
-
-  if (server.hasArg("sm-air") || server.hasArg("sm-water") || server.arg("sm-air") != NULL || server.arg("sm-water") != NULL)
-  {
-    serialPrintf("#CUSTOM_CFG!%s!%s", server.arg("sm-air").c_str(), server.arg("sm-water").c_str());
-  }
-
-  g_ssid = server.arg("ssid");
-  g_password = server.arg("password");
-
-
-  String s = DONE_page;
-  server.send(200, "text/html", s);
-
-  serialPrintf("#CONFIG_DONE");
-
-  delay(3000);
-  operationState();
-}
-
-void handleNotFound()
-{
-  String s = NOT_FOUND_page;
-  server.send(200, "text/html", s);
 }
 
 String readFromSerialIfAvailable()
@@ -293,6 +241,10 @@ void displayStatus()
   }
 }
 
+void notFound(AsyncWebServerRequest *request) {
+    request->send(404, "text/plain", "Not found");
+}
+
 void setup()
 {
   Serial.begin(9600);
@@ -302,10 +254,52 @@ void setup()
     ; // wait for serial port to connect. Needed for native USB
   }
 
-  server.on("/", HTTP_GET, handleRoot);
-  server.on("/config", HTTP_POST, handleDone);
-  server.on("/soil-moisture-value", HTTP_GET, handleSoilMoistureValueRead);
-  server.onNotFound(handleNotFound);
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+      String s = MAIN_page;
+      request->send(200, "text/html", s);
+  });
+
+  
+  server.on("/config", HTTP_POST, [](AsyncWebServerRequest *request){
+    if (!request->hasParam("ssid") || !request->hasParam("password"))
+    {
+      String s = ERROR_page;
+      request->send(400, "text/html", s);
+  
+      serialPrintf("#CONFIG_FAILED");
+      return;
+    }
+  
+    if (request->hasParam("sm-air") && request->hasParam("sm-water"))
+    {
+      String airValue = request->getParam("sm-air")->value();
+      String waterValue = request->getParam("sm-water")->value();
+
+      char buff[15];
+      sprintf(buff, "#CUSTOM_CFG!%s!%s", airValue.c_str(), waterValue.c_str());
+      Serial.println(buff);
+    }
+  
+    g_ssid = request->getParam("ssid")->value();
+    g_password = request->getParam("password")->value();
+  
+  
+    String s = DONE_page;
+    request->send(200, "text/html", s);
+  
+    serialPrintf("#CONFIG_DONE");
+  
+    delay(3000);
+    operationState();
+  });
+
+  server.on("/soil-moisture-value", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/plain", soilMoistureValue);
+  });
+  
+  server.onNotFound(notFound);
+
+  server.begin();
 
   pinMode(RESET_BUTTON_PIN, INPUT);
   pinMode(STATUS_LED_PIN, OUTPUT);
@@ -315,8 +309,6 @@ void setup()
 
 void loop()
 {
-  server.handleClient();
-
   String serialCmd = readFromSerialIfAvailable();
   processSerialCommand(serialCmd);
 
