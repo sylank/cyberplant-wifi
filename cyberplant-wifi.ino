@@ -15,7 +15,6 @@ String readFromSerialIfAvailable();
 void processSerialCommand(const String &cmd);
 void configState(const String &message);
 void operationState();
-void idleState();
 void checkConnectionState();
 bool sendDataToServer(const String &message);
 bool connectToNetwork(const String &ssid, const String &password);
@@ -68,6 +67,13 @@ void processSerialCommand(const String &cmd)
   }
 }
 
+void blinkLed(int d) {
+  wifiStatusLEDTurnON();
+  delay(d);
+  wifiStatusLEDTurnOFF();
+  delay(d);
+}
+
 void configState()
 {
   WiFi.disconnect();
@@ -76,6 +82,7 @@ void configState()
   if (!result)
   {
     Serial.println("Failed!");
+    wifiStatusLEDTurnON();
     return;
   }
 
@@ -86,7 +93,9 @@ void configState()
 
   Serial.println("HTTP server started");
 
-  wifiStatusLEDTurnOFF();
+  blinkLed(200);
+  blinkLed(200);
+  blinkLed(200);
 }
 
 void operationState()
@@ -147,14 +156,6 @@ bool connectToNetwork(const String& ssid, const String& password)
   }
 
   return true;
-}
-
-void idleState()
-{
-  //  server.stop();
-  WiFi.softAPdisconnect(true);
-  WiFi.setAutoReconnect(false);
-  WiFi.disconnect();
 }
 
 // 2#http://192.168.88.252:3000/insert!{"sensor_id":"value1", "command":0, "temperature":1.1, "humidity":2.22, "soil_moisture":3.33}
@@ -265,7 +266,7 @@ void notFound(AsyncWebServerRequest *request) {
   request->send(404, "text/plain", "Not found");
 }
 
-bool operationEnabled = false;
+bool tryToConnectToWiFi = false;
 
 void setup()
 {
@@ -342,7 +343,7 @@ void setup()
 
   Serial.println("#MODULE_READY");
 
-  operationEnabled = true;
+  tryToConnectToWiFi = true;
 }
 
 void loop()
@@ -353,8 +354,8 @@ void loop()
   handleButton();
   displayStatus();
 
-  if (operationEnabled) {
-    operationEnabled = false;
+  if (tryToConnectToWiFi) {
+    tryToConnectToWiFi = false;
     operationState();
   }
 }
