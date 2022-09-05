@@ -2,11 +2,11 @@
 #include <ESP8266HTTPClient.h>
 #include <ESPAsyncTCP.h> // https://github.com/me-no-dev/ESPAsyncWebServer
 #include <ESPAsyncWebServer.h> // https://randomnerdtutorials.com/esp8266-nodemcu-async-web-server-espasyncwebserver-library/
+#include "AsyncJson.h"
+#include "ArduinoJson.h" // https://github.com/bblanchon/ArduinoJson
 #include <stdarg.h>
 
 #include "pages.h"
-
-#include "serial.h"
 
 #define RESET_BUTTON_PIN 0
 #define STATUS_LED_PIN 2
@@ -22,11 +22,13 @@ bool connectToNetwork(const String &ssid, const String &password);
 
 void handleButton();
 void displayStatus();
+void wifiStatusLEDTurnON();
+void wifiStatusLEDTurnOFF();
 
 AsyncWebServer server(80);
 
-String g_ssid = "";
-String g_password = "";
+String g_ssid;
+String g_password;
 
 bool resetBtnPrestate = false;
 bool wifiStatus = false;
@@ -69,27 +71,27 @@ void processSerialCommand(const String &cmd)
 void configState()
 {
   WiFi.disconnect();
-  serialPrintf("Setting soft-AP ... ");
+  Serial.println("Setting soft-AP ... ");
   boolean result = WiFi.softAP("CyberPlant echo - station", "");
   if (!result)
   {
-    serialPrintf("Failed!");
+    Serial.println("Failed!");
     return;
   }
 
-  serialPrintf("Ready");
+  Serial.println("Ready");
   IPAddress IP = WiFi.softAPIP();
-  serialPrintf("AP IP address: ");
-  serialPrintf(IP.toString().c_str());
+  Serial.println("AP IP address: ");
+  Serial.println(IP.toString().c_str());
 
-  serialPrintf("HTTP server started");
+  Serial.println("HTTP server started");
 
-  wifiStatus = true;
+  wifiStatusLEDTurnOFF();
 }
 
 void operationState()
 {
-//  server.stop();
+  //  server.stop();
   WiFi.softAPdisconnect(true);
   WiFi.setAutoReconnect(false);
 
@@ -97,23 +99,30 @@ void operationState()
 
   if (isConnected)
   {
-    serialPrintf("Connection established!");
-    serialPrintf("IP address:\t");
-    serialPrintf(WiFi.localIP().toString().c_str());
+    Serial.println("Connection established!");
+    Serial.println("IP address:\t");
+    Serial.println(WiFi.localIP().toString().c_str());
 
     WiFi.setAutoConnect(true);
     WiFi.setAutoReconnect(true);
     WiFi.persistent(true);
 
-    serialPrintf("#WIFI_CONNECTED!%s", WiFi.localIP().toString().c_str());
+    Serial.print("#WIFI_CONNECTED!");
+    Serial.println(WiFi.localIP().toString());
+
+    wifiStatusLEDTurnOFF();
   }
   else
   {
-    serialPrintf("#WIFI_CONNECTION_FAILED");
+    Serial.println("#WIFI_CONNECTION_FAILED");
+    wifiStatusLEDTurnON();
   }
+
+
+  displayStatus();
 }
 
-bool connectToNetwork(const String &ssid, const String &password)
+bool connectToNetwork(const String& ssid, const String& password)
 {
   if (ssid == "" && password == "")
   {
@@ -128,8 +137,8 @@ bool connectToNetwork(const String &ssid, const String &password)
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(1000);
-    serialPrintf("%d", ++i);
-    serialPrintf(" ");
+    Serial.print(++i);
+    Serial.print(" ");
 
     if (i == 10)
     {
@@ -142,7 +151,7 @@ bool connectToNetwork(const String &ssid, const String &password)
 
 void idleState()
 {
-//  server.stop();
+  //  server.stop();
   WiFi.softAPdisconnect(true);
   WiFi.setAutoReconnect(false);
   WiFi.disconnect();
@@ -162,20 +171,21 @@ bool sendDataToServer(const String &message)
   http.addHeader("Content-Type", "application/json");
   int httpResponseCode = http.POST(postMessage);
 
-  serialPrintf("HTTP Response code: ");
-  serialPrintf("%d", httpResponseCode);
+  Serial.println("HTTP Response code: ");
+  Serial.println(httpResponseCode);
 
   http.end();
 
   if (httpResponseCode >= 200 && httpResponseCode <= 299)
   {
-    serialPrintf("#TRANSPORT_OK");
+    Serial.println("#TRANSPORT_OK");
 
     return true;
   }
   else
   {
-    serialPrintf("#TRANSPORT_FAILED!%d", httpResponseCode);
+    Serial.print("#TRANSPORT_FAILED!");
+    Serial.println(httpResponseCode);
 
     return false;
   }
@@ -229,6 +239,16 @@ void handleButton()
   }
 }
 
+void wifiStatusLEDTurnON() {
+  wifiStatus = false;
+  displayStatus();
+}
+
+void wifiStatusLEDTurnOFF() {
+  wifiStatus = true;
+  displayStatus();
+}
+
 void displayStatus()
 {
   if (wifiStatus)
@@ -242,8 +262,10 @@ void displayStatus()
 }
 
 void notFound(AsyncWebServerRequest *request) {
-    request->send(404, "text/plain", "Not found");
+  request->send(404, "text/plain", "Not found");
 }
+
+bool operationEnabled = false;
 
 void setup()
 {
@@ -254,49 +276,63 @@ void setup()
     ; // wait for serial port to connect. Needed for native USB
   }
 
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-      String s = MAIN_page;
-      request->send(200, "text/html", s);
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest * request) {
+    String s = MAIN_page;
+    request->send(200, "text/html", s);
   });
 
-  
-  server.on("/config", HTTP_POST, [](AsyncWebServerRequest *request){
-    if (!request->hasParam("ssid") || !request->hasParam("password"))
+  AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/config", [](AsyncWebServerRequest * request, JsonVariant & json) {
+    StaticJsonDocument<200> jsonObj = json.as<JsonObject>();
+    serializeJson(jsonObj, Serial);
+
+    if (!jsonObj.containsKey("ssid") || !jsonObj.containsKey("password"))
     {
-      String s = ERROR_page;
-      request->send(400, "text/html", s);
-  
-      serialPrintf("#CONFIG_FAILED");
+      AsyncWebServerResponse *response = request->beginResponse(400);
+      request->send(response);
       return;
     }
-  
-    if (request->hasParam("sm-air") && request->hasParam("sm-water"))
+
+    String ssid = jsonObj["ssid"];
+    String pass = jsonObj["password"];
+
+    if (ssid.length() == 0 || pass.length() == 0) {
+      AsyncWebServerResponse *response = request->beginResponse(400);
+      request->send(response);
+      return;
+    }
+
+    g_ssid = ssid;
+    g_password = pass;
+
+    if (jsonObj.containsKey("sm-air") && jsonObj.containsKey("sm-water"))
     {
-      String airValue = request->getParam("sm-air")->value();
-      String waterValue = request->getParam("sm-water")->value();
+      String airValue = jsonObj["sm-air"];
+      String waterValue = jsonObj["sm-water"];
 
       char buff[15];
       sprintf(buff, "#CUSTOM_CFG!%s!%s", airValue.c_str(), waterValue.c_str());
       Serial.println(buff);
     }
-  
-    g_ssid = request->getParam("ssid")->value();
-    g_password = request->getParam("password")->value();
-  
-  
+
+    AsyncWebServerResponse *response = request->beginResponse(200);
+    request->send(response);
+  });
+  server.addHandler(handler);
+
+  server.on("/done", HTTP_GET, [](AsyncWebServerRequest * request) {
     String s = DONE_page;
     request->send(200, "text/html", s);
-  
-    serialPrintf("#CONFIG_DONE");
-  
-    delay(3000);
-    operationState();
   });
 
-  server.on("/soil-moisture-value", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/error", HTTP_GET, [](AsyncWebServerRequest * request) {
+    String s = ERROR_page;
+    request->send(400, "text/html", s);
+  });
+
+  server.on("/soil-moisture-value", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(200, "text/plain", soilMoistureValue);
   });
-  
+
   server.onNotFound(notFound);
 
   server.begin();
@@ -304,7 +340,9 @@ void setup()
   pinMode(RESET_BUTTON_PIN, INPUT);
   pinMode(STATUS_LED_PIN, OUTPUT);
 
-  serialPrintf("#MODULE_READY");
+  Serial.println("#MODULE_READY");
+
+  operationEnabled = true;
 }
 
 void loop()
@@ -314,4 +352,9 @@ void loop()
 
   handleButton();
   displayStatus();
+
+  if (operationEnabled) {
+    operationEnabled = false;
+    operationState();
+  }
 }
