@@ -284,7 +284,6 @@ void setup()
 
   AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/config", [](AsyncWebServerRequest * request, JsonVariant & json) {
     StaticJsonDocument<200> jsonObj = json.as<JsonObject>();
-    serializeJson(jsonObj, Serial);
 
     if (!jsonObj.containsKey("ssid") || !jsonObj.containsKey("password"))
     {
@@ -321,6 +320,8 @@ void setup()
   server.addHandler(handler);
 
   server.on("/done", HTTP_GET, [](AsyncWebServerRequest * request) {
+    tryToConnectToWiFi = true;
+
     String s = DONE_page;
     request->send(200, "text/html", s);
   });
