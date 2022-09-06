@@ -1,3 +1,7 @@
+#define DEVICE_ID "AlmafaMokus1";
+
+const char HOST[] PROGMEM = {"http://192.168.88.125:3000/api/sensor-data"};
+
 #include "ESP8266WiFi.h"
 #include <ESP8266HTTPClient.h>
 #include <ESPAsyncTCP.h> // https://github.com/me-no-dev/ESPAsyncWebServer
@@ -64,6 +68,39 @@ void processSerialCommand(const String &cmd)
   if (cmd.indexOf("#") == 0)
   {
     soilMoistureValue = getMessageElement(cmd, ';', 0).substring(1, cmd.indexOf(";"));
+
+    if (wifiStatus) {
+      String hum = getMessageElement(cmd, ';', 1);
+      String temp = getMessageElement(cmd, ';', 2);
+
+      StaticJsonDocument<200> doc;
+      doc["device_id"] = DEVICE_ID;
+      doc["token"] = "<placeholder>";
+
+      StaticJsonDocument<200> sensors;
+      // create an empty array
+      JsonArray arr = sensors.to<JsonArray>();
+
+      JsonObject soilMoistureSensorData = arr.createNestedObject();
+      soilMoistureSensorData["id"] = "soil_moisture_percent";
+      soilMoistureSensorData["value"] = atoi(soilMoistureValue.c_str());
+
+      JsonObject humiditySensorData = arr.createNestedObject();
+      humiditySensorData["id"] = "humidity_percent";
+      humiditySensorData["value"] = hum.toFloat();
+
+      JsonObject temperatureSensorData = arr.createNestedObject();
+      temperatureSensorData["id"] = "temperature_percent";
+      temperatureSensorData["value"] = temp.toFloat();
+
+      doc["sensors"] = sensors;
+
+      String jsonString;
+      serializeJson(doc, jsonString);
+
+      Serial.println(jsonString);
+      sendDataToServer(HOST, jsonString);
+    }
   }
 }
 
@@ -158,19 +195,15 @@ bool connectToNetwork(const String& ssid, const String& password)
   return true;
 }
 
-// 2#http://192.168.88.252:3000/insert!{"sensor_id":"value1", "command":0, "temperature":1.1, "humidity":2.22, "soil_moisture":3.33}
-bool sendDataToServer(const String &message)
+bool sendDataToServer(const String& host, const String& message)
 {
   WiFiClient client;
   HTTPClient http;
 
-  String serverName = message.substring(0, message.indexOf('!'));
-  String postMessage = message.substring(message.indexOf('!') + 1, message.length());
-
-  http.begin(client, serverName);
+  http.begin(client, host);
 
   http.addHeader("Content-Type", "application/json");
-  int httpResponseCode = http.POST(postMessage);
+  int httpResponseCode = http.POST(message);
 
   Serial.println("HTTP Response code: ");
   Serial.println(httpResponseCode);
@@ -187,6 +220,9 @@ bool sendDataToServer(const String &message)
   {
     Serial.print("#TRANSPORT_FAILED!");
     Serial.println(httpResponseCode);
+
+    blinkLed(200);
+    blinkLed(200);
 
     return false;
   }
