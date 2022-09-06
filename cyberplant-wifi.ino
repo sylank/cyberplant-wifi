@@ -20,7 +20,7 @@ void processSerialCommand(const String &cmd);
 void configState(const String &message);
 void operationState();
 void checkConnectionState();
-bool sendDataToServer(const String &message);
+int sendDataToServer(const String &message);
 bool connectToNetwork(const String &ssid, const String &password);
 
 void handleButton();
@@ -78,7 +78,6 @@ void processSerialCommand(const String &cmd)
       doc["token"] = "<placeholder>";
 
       StaticJsonDocument<200> sensors;
-      // create an empty array
       JsonArray arr = sensors.to<JsonArray>();
 
       JsonObject soilMoistureSensorData = arr.createNestedObject();
@@ -99,7 +98,20 @@ void processSerialCommand(const String &cmd)
       serializeJson(doc, jsonString);
 
       Serial.println(jsonString);
-      sendDataToServer(HOST, jsonString);
+      int requestStatusCode = sendDataToServer(HOST, jsonString);
+
+      if (requestStatusCode >= 200 && requestStatusCode <= 299)
+      {
+        Serial.println("request sent");
+      }
+      else
+      {
+        Serial.println("request failed");
+        Serial.println(requestStatusCode);
+
+        blinkLed(200);
+        blinkLed(200);
+      }
     }
   }
 }
@@ -113,6 +125,7 @@ void blinkLed(int d) {
 
 void configState()
 {
+  Serial.println("#1!0!0!0");
   WiFi.disconnect();
   Serial.println("Setting soft-AP ... ");
   boolean result = WiFi.softAP("CyberPlant echo - station", "");
@@ -137,7 +150,6 @@ void configState()
 
 void operationState()
 {
-  //  server.stop();
   WiFi.softAPdisconnect(true);
   WiFi.setAutoReconnect(false);
 
@@ -153,14 +165,10 @@ void operationState()
     WiFi.setAutoReconnect(true);
     WiFi.persistent(true);
 
-    Serial.print("#WIFI_CONNECTED!");
-    Serial.println(WiFi.localIP().toString());
-
     wifiStatusLEDTurnOFF();
   }
   else
   {
-    Serial.println("#WIFI_CONNECTION_FAILED");
     wifiStatusLEDTurnON();
   }
 
@@ -195,7 +203,7 @@ bool connectToNetwork(const String& ssid, const String& password)
   return true;
 }
 
-bool sendDataToServer(const String& host, const String& message)
+int sendDataToServer(const String& host, const String& message)
 {
   WiFiClient client;
   HTTPClient http;
@@ -210,24 +218,7 @@ bool sendDataToServer(const String& host, const String& message)
 
   http.end();
 
-  if (httpResponseCode >= 200 && httpResponseCode <= 299)
-  {
-    Serial.println("#TRANSPORT_OK");
-
-    return true;
-  }
-  else
-  {
-    Serial.print("#TRANSPORT_FAILED!");
-    Serial.println(httpResponseCode);
-
-    blinkLed(200);
-    blinkLed(200);
-
-    return false;
-  }
-
-  return false;
+  return httpResponseCode;
 }
 
 String readFromSerialIfAvailable()
@@ -321,7 +312,8 @@ void setup()
   AsyncCallbackJsonWebHandler* handler = new AsyncCallbackJsonWebHandler("/config", [](AsyncWebServerRequest * request, JsonVariant & json) {
     StaticJsonDocument<200> jsonObj = json.as<JsonObject>();
 
-    if (!jsonObj.containsKey("ssid") || !jsonObj.containsKey("password"))
+    if (!jsonObj.containsKey("ssid") || !jsonObj.containsKey("password") ||
+        !jsonObj.containsKey("sm-air") || !jsonObj.containsKey("sm-water"))
     {
       AsyncWebServerResponse *response = request->beginResponse(400);
       request->send(response);
@@ -331,7 +323,8 @@ void setup()
     String ssid = jsonObj["ssid"];
     String pass = jsonObj["password"];
 
-    if (ssid.length() == 0 || pass.length() == 0) {
+    if (ssid.length() == 0 || pass.length() == 0)
+    {
       AsyncWebServerResponse *response = request->beginResponse(400);
       request->send(response);
       return;
@@ -340,15 +333,12 @@ void setup()
     g_ssid = ssid;
     g_password = pass;
 
-    if (jsonObj.containsKey("sm-air") && jsonObj.containsKey("sm-water"))
-    {
-      String airValue = jsonObj["sm-air"];
-      String waterValue = jsonObj["sm-water"];
+    String airValue = jsonObj["sm-air"];
+    String waterValue = jsonObj["sm-water"];
 
-      char buff[15];
-      sprintf(buff, "#CUSTOM_CFG!%s!%s", airValue.c_str(), waterValue.c_str());
-      Serial.println(buff);
-    }
+    char buff[15];
+    sprintf(buff, "#1!%s!%s#1", airValue.c_str(), waterValue.c_str());
+    Serial.println(buff);
 
     AsyncWebServerResponse *response = request->beginResponse(200);
     request->send(response);
@@ -377,8 +367,6 @@ void setup()
 
   pinMode(RESET_BUTTON_PIN, INPUT);
   pinMode(STATUS_LED_PIN, OUTPUT);
-
-  Serial.println("#MODULE_READY");
 
   tryToConnectToWiFi = true;
 }
