@@ -100,15 +100,8 @@ void processSerialCommand(const String &cmd)
       Serial.println(jsonString);
       int requestStatusCode = sendDataToServer(HOST, jsonString);
 
-      if (requestStatusCode >= 200 && requestStatusCode <= 299)
+      if (!(requestStatusCode >= 200 && requestStatusCode <= 299))
       {
-        Serial.println("request sent");
-      }
-      else
-      {
-        Serial.println("request failed");
-        Serial.println(requestStatusCode);
-
         blinkLed(200);
         blinkLed(200);
       }
@@ -126,22 +119,16 @@ void blinkLed(int d) {
 void configState()
 {
   Serial.println("#1!0!0!0");
+  
   WiFi.disconnect();
-  Serial.println("Setting soft-AP ... ");
   boolean result = WiFi.softAP("CyberPlant echo - station", "");
   if (!result)
   {
-    Serial.println("Failed!");
     wifiStatusLEDTurnON();
     return;
   }
 
-  Serial.println("Ready");
   IPAddress IP = WiFi.softAPIP();
-  Serial.println("AP IP address: ");
-  Serial.println(IP.toString().c_str());
-
-  Serial.println("HTTP server started");
 
   blinkLed(200);
   blinkLed(200);
@@ -157,10 +144,6 @@ void operationState()
 
   if (isConnected)
   {
-    Serial.println("Connection established!");
-    Serial.println("IP address:\t");
-    Serial.println(WiFi.localIP().toString().c_str());
-
     WiFi.setAutoConnect(true);
     WiFi.setAutoReconnect(true);
     WiFi.persistent(true);
@@ -190,9 +173,7 @@ bool connectToNetwork(const String& ssid, const String& password)
   int i = 0;
   while (WiFi.status() != WL_CONNECTED)
   {
-    delay(1000);
-    Serial.print(++i);
-    Serial.print(" ");
+    blinkLED(500);
 
     if (i == 10)
     {
@@ -212,9 +193,6 @@ int sendDataToServer(const String& host, const String& message)
 
   http.addHeader("Content-Type", "application/json");
   int httpResponseCode = http.POST(message);
-
-  Serial.println("HTTP Response code: ");
-  Serial.println(httpResponseCode);
 
   http.end();
 
