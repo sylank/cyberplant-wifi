@@ -1,6 +1,14 @@
 const char MAIN_page[] PROGMEM = R"=====(
 <!DOCTYPE html><html lang="en" dir="ltr"><head><meta charset="utf-8"><title>Plant Healthcheck Station Config</title></head><body style="display: flex;justify-content: center;flex-direction: column;align-content: center;align-items: center;">
 <h1>Plant Healthcheck Station Config</h1>
+<div style="display: flex;justify-content: center;align-items: baseline;flex-direction: column;">
+<div style="display: flex;align-items: baseline;">
+<b>Device ID: </b><p style="margin-top:0; margin-bottom:5px;" id="device-id">AlmafaMokus1</p>
+</div>
+<div style="display: flex;align-items: baseline;">
+<b>Version: </b><p style="margin:0;">v0.0.1</p>
+</div>
+</div>
 <p style="max-width: 400px;">You can configure the station's network conncection and the moisture sensor's base values. Please double check the WiFi SSID and the password before you finish the configuration process.</p>
 <div style="display: flex;max-width: 300px;flex-direction: column;justify-content: center;align-items: center;">
 <p>First of all, please enter the WiFi station name (SSID) and password below:</p>
@@ -28,7 +36,27 @@ const char MAIN_page[] PROGMEM = R"=====(
 <button id="btn-finish" style="background: rgb(99 221 227);border: none;width: 100px;height: 50px;font-size: 16px;margin-top: 30px;cursor: pointer;">Finish</button>
 </div>
 <script>
-  function fetchHttp() {
+  function fetchDeviceID() {
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", "/device-id", true);
+    xhr.onload = function (e) {
+      if (xhr.readyState === 4) {
+        if (xhr.status === 200) {
+          document.getElementById("device-id").innerHTML =xhr.responseText;
+        } else {
+          console.error(xhr.statusText);
+        }
+      }
+    };
+    xhr.onerror = function (e) {
+      console.error(xhr.statusText);
+    };
+    xhr.send(null);
+  };
+
+  fetchDeviceID();
+
+  function fetchSoilMoisture() {
     const xhr = new XMLHttpRequest();
     xhr.open("GET", "/soil-moisture-value", true);
     xhr.onload = function (e) {
@@ -45,10 +73,10 @@ const char MAIN_page[] PROGMEM = R"=====(
     };
     xhr.send(null);
 
-    setTimeout(fetchHttp, 1000);
+    setTimeout(fetchSoilMoisture, 1000);
   };
 
-  fetchHttp();
+  fetchSoilMoisture();
 
   var button = document.getElementById("btn-finish");
   button.addEventListener("click",function(e){

@@ -1,4 +1,4 @@
-#define DEVICE_ID "AlmafaMokus1";
+#define DEVICE_ID "AlmafaMokus1"
 
 const char HOST[] PROGMEM = {"http://192.168.88.125:3000/api/sensor-data"};
 
@@ -119,7 +119,7 @@ void blinkLed(int d) {
 void configState()
 {
   Serial.println("#1!0!0!0");
-  
+
   WiFi.disconnect();
   boolean result = WiFi.softAP("CyberPlant echo - station", "");
   if (!result)
@@ -173,7 +173,8 @@ bool connectToNetwork(const String& ssid, const String& password)
   int i = 0;
   while (WiFi.status() != WL_CONNECTED)
   {
-    blinkLED(500);
+    i++;
+    blinkLed(500);
 
     if (i == 10)
     {
@@ -337,6 +338,10 @@ void setup()
 
   server.on("/soil-moisture-value", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(200, "text/plain", soilMoistureValue);
+  });
+
+  server.on("/device-id", HTTP_GET, [](AsyncWebServerRequest * request) {
+    request->send(200, "text/plain", DEVICE_ID);
   });
 
   server.onNotFound(notFound);
