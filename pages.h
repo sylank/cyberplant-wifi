@@ -32,6 +32,10 @@ const char MAIN_page[] PROGMEM = R"=====(
 <div style="display: flex;flex-direction: column;width: 100%;margin-bottom: 20px;">
 <p style="margin-bottom: 5px;">Water Value</p>
 <input type="number" id="sm-water">
+<p style="margin-bottom: 0px;">Device token: please paste the device token that you have generated on the website.</p>
+<div style="display: flex;flex-direction: column;width: 100%;margin-bottom: 20px;">
+<p style="margin-bottom: 5px;">Device token</p>
+<input type="text" id="token-value">
 </div>
 <button id="btn-finish" style="background: rgb(99 221 227);border: none;width: 100px;height: 50px;font-size: 16px;margin-top: 30px;cursor: pointer;">Finish</button>
 </div>
@@ -84,6 +88,7 @@ const char MAIN_page[] PROGMEM = R"=====(
     var password = document.getElementById("password").value;
     var smAir = document.getElementById("sm-air").value;
     var smWater = document.getElementById("sm-water").value;
+    var tokenVal = document.getElementById("token-value").value;
     
     var xmlhttp = new XMLHttpRequest();
     var theUrl = "/config";
@@ -103,7 +108,7 @@ const char MAIN_page[] PROGMEM = R"=====(
     xmlhttp.onerror = function (e) {
       console.error(xmlhttp.statusText);
     };
-    xmlhttp.send(JSON.stringify({ "ssid": ssid, "password": password, "sm-air":smAir, "sm-water":smWater }));
+    xmlhttp.send(JSON.stringify({ "ssid": ssid, "password": password, "token":tokenVal, "sm-air":smAir, "sm-water":smWater }));
   },false);
 </script>
 </body>

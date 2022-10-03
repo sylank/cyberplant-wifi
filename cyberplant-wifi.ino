@@ -1,6 +1,6 @@
 #define DEVICE_ID "AlmafaMokus1"
 
-const char HOST[] PROGMEM = {"http://192.168.88.125:3000/api/sensor-data"};
+const char HOST[] PROGMEM = {"http://192.168.88.125:3000/api/insert"};
 
 #include "ESP8266WiFi.h"
 #include <ESP8266HTTPClient.h>
@@ -75,7 +75,6 @@ void processSerialCommand(const String &cmd)
 
       StaticJsonDocument<200> doc;
       doc["device_id"] = DEVICE_ID;
-      doc["token"] = "<placeholder>";
 
       StaticJsonDocument<200> sensors;
       JsonArray arr = sensors.to<JsonArray>();
@@ -128,15 +127,13 @@ void configState()
     return;
   }
 
-  IPAddress IP = WiFi.softAPIP();
-
   blinkLed(200);
   blinkLed(200);
   blinkLed(200);
 }
 
 void operationState()
-{
+{    
   WiFi.softAPdisconnect(true);
   WiFi.setAutoReconnect(false);
 
@@ -146,7 +143,6 @@ void operationState()
   {
     WiFi.setAutoConnect(true);
     WiFi.setAutoReconnect(true);
-    WiFi.persistent(true);
 
     wifiStatusLEDTurnOFF();
   }
@@ -154,7 +150,6 @@ void operationState()
   {
     wifiStatusLEDTurnON();
   }
-
 
   displayStatus();
 }
@@ -193,6 +188,7 @@ int sendDataToServer(const String& host, const String& message)
   http.begin(client, host);
 
   http.addHeader("Content-Type", "application/json");
+  http.addHeader("token", "t");
   int httpResponseCode = http.POST(message);
 
   http.end();
@@ -314,6 +310,7 @@ void setup()
 
     String airValue = jsonObj["sm-air"];
     String waterValue = jsonObj["sm-water"];
+    String token = jsonObj["token"];
 
     char buff[15];
     sprintf(buff, "#1!%s!%s#1", airValue.c_str(), waterValue.c_str());
