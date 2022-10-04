@@ -1,6 +1,6 @@
 #define DEVICE_ID "AlmafaMokus1"
 
-const char HOST[] PROGMEM = {"http://192.168.88.125:3000/api/insert"};
+const char HOST[] PROGMEM = {"http://192.168.88.207:3000/device/insert"};
 
 #include "ESP8266WiFi.h"
 #include <ESP8266HTTPClient.h>
@@ -9,7 +9,7 @@ const char HOST[] PROGMEM = {"http://192.168.88.125:3000/api/insert"};
 #include "AsyncJson.h"
 #include "ArduinoJson.h" // https://github.com/bblanchon/ArduinoJson
 #include <stdarg.h>
-#include <EEPROM.h>
+#include <EEPROM.h> // esp8266 has no EEPROM this is an interface to writing into the flash
 
 #include "pages.h"
 
@@ -103,23 +103,26 @@ void processSerialCommand(const String &cmd)
       String hum = getMessageElement(cmd, ';', 1);
       String temp = getMessageElement(cmd, ';', 2);
 
-      StaticJsonDocument<200> doc;
+      StaticJsonDocument<400> doc;
       doc["device_id"] = DEVICE_ID;
 
-      StaticJsonDocument<200> sensors;
+      StaticJsonDocument<400> sensors;
       JsonArray arr = sensors.to<JsonArray>();
 
       JsonObject soilMoistureSensorData = arr.createNestedObject();
       soilMoistureSensorData["id"] = "soil_moisture_percent";
-      soilMoistureSensorData["value"] = atoi(soilMoistureValue.c_str());
+      soilMoistureSensorData["type"] = "int";
+      soilMoistureSensorData["value"] = soilMoistureValue;
 
       JsonObject humiditySensorData = arr.createNestedObject();
       humiditySensorData["id"] = "humidity_percent";
-      humiditySensorData["value"] = hum.toFloat();
+      humiditySensorData["type"] = "float";
+      humiditySensorData["value"] = hum;
 
       JsonObject temperatureSensorData = arr.createNestedObject();
       temperatureSensorData["id"] = "temperature_percent";
-      temperatureSensorData["value"] = temp.toFloat();
+      temperatureSensorData["type"] = "float";
+      temperatureSensorData["value"] = temp;
 
       doc["sensors"] = sensors;
 
