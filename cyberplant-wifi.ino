@@ -9,6 +9,7 @@ const char HOST[] PROGMEM = {"http://192.168.88.125:3000/api/insert"};
 #include "AsyncJson.h"
 #include "ArduinoJson.h" // https://github.com/bblanchon/ArduinoJson
 #include <stdarg.h>
+#include <EEPROM.h>
 
 #include "pages.h"
 
@@ -37,6 +38,35 @@ bool resetBtnPrestate = false;
 bool wifiStatus = false;
 
 String soilMoistureValue = "666";
+
+void writeToken(const String token) {
+  EEPROM.begin(512);
+  EEPROM.write(0, byte(token.length()));
+  
+  for (int i = 0; i<token.length(); i++) {
+    EEPROM.write(i+1, token[i]);
+  }
+
+  EEPROM.commit();
+  EEPROM.end();
+}
+
+String readToken() {
+  EEPROM.begin(512);
+
+  int tokenSize = EEPROM.read(0);
+
+  String strText;   
+  for(int i = 0;i<tokenSize;i++) 
+  {
+    char cc;
+    EEPROM.get(i+1, cc);
+    strText = strText + cc;
+  }  
+  
+  EEPROM.end();
+  return strText;
+}
 
 String getMessageElement(const String &data, char separator, int index)
 {
@@ -96,7 +126,6 @@ void processSerialCommand(const String &cmd)
       String jsonString;
       serializeJson(doc, jsonString);
 
-      Serial.println(jsonString);
       int requestStatusCode = sendDataToServer(HOST, jsonString);
 
       if (!(requestStatusCode >= 200 && requestStatusCode <= 299))
@@ -133,7 +162,7 @@ void configState()
 }
 
 void operationState()
-{    
+{
   WiFi.softAPdisconnect(true);
   WiFi.setAutoReconnect(false);
 
@@ -143,7 +172,7 @@ void operationState()
   {
     WiFi.setAutoConnect(true);
     WiFi.setAutoReconnect(true);
-
+    // WiFi.persist(true)
     wifiStatusLEDTurnOFF();
   }
   else
@@ -188,7 +217,7 @@ int sendDataToServer(const String& host, const String& message)
   http.begin(client, host);
 
   http.addHeader("Content-Type", "application/json");
-  http.addHeader("token", "t");
+  http.addHeader("token", readToken());
   int httpResponseCode = http.POST(message);
 
   http.end();
@@ -271,7 +300,7 @@ void notFound(AsyncWebServerRequest *request) {
 bool tryToConnectToWiFi = false;
 
 void setup()
-{
+{ 
   Serial.begin(9600);
 
   while (!Serial)
@@ -311,6 +340,8 @@ void setup()
     String airValue = jsonObj["sm-air"];
     String waterValue = jsonObj["sm-water"];
     String token = jsonObj["token"];
+
+    writeToken(token);
 
     char buff[15];
     sprintf(buff, "#1!%s!%s#1", airValue.c_str(), waterValue.c_str());
