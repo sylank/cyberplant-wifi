@@ -42,9 +42,9 @@ String soilMoistureValue = "666";
 void writeToken(const String token) {
   EEPROM.begin(512);
   EEPROM.write(0, byte(token.length()));
-  
-  for (int i = 0; i<token.length(); i++) {
-    EEPROM.write(i+1, token[i]);
+
+  for (int i = 0; i < token.length(); i++) {
+    EEPROM.write(i + 1, token[i]);
   }
 
   EEPROM.commit();
@@ -56,14 +56,14 @@ String readToken() {
 
   int tokenSize = EEPROM.read(0);
 
-  String strText;   
-  for(int i = 0;i<tokenSize;i++) 
+  String strText;
+  for (int i = 0; i < tokenSize; i++)
   {
     char cc;
-    EEPROM.get(i+1, cc);
+    EEPROM.get(i + 1, cc);
     strText = strText + cc;
-  }  
-  
+  }
+
   EEPROM.end();
   return strText;
 }
@@ -300,7 +300,7 @@ void notFound(AsyncWebServerRequest *request) {
 bool tryToConnectToWiFi = false;
 
 void setup()
-{ 
+{
   Serial.begin(9600);
 
   while (!Serial)
