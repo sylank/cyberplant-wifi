@@ -304,7 +304,7 @@ bool tryToConnectToWiFi = false;
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(19200);
 
   while (!Serial)
   {
@@ -346,8 +346,8 @@ void setup()
 
     writeToken(token);
 
-    char buff[15];
-    sprintf(buff, "#1!%s!%s#1", airValue.c_str(), waterValue.c_str());
+    char buff[20];
+    sprintf(buff, "#1!%s!%s!1", airValue.c_str(), waterValue.c_str());
     Serial.println(buff);
 
     AsyncWebServerResponse *response = request->beginResponse(200);
