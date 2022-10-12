@@ -22,13 +22,16 @@ const char MAIN_page[] PROGMEM = R"=====(
 </div>
 <div style="height: 1px;background: black;margin-top: 20px;margin-bottom: 20px;width: 100%;"></div>
 <p style="margin-top: 0px;">Now you can configure the Soil Moisture sensor's base values. Every sensors are different a bit, so you have to configure the 100% (max) value and the 0% (min) value.</p>
+<p>Value:</p>
 <h2 id="sm-value-cap">0</h2>
+<p>Calculated percent:</p>
+<h2 id="sm-value-per">0 %</h2>
 <p style="margin-bottom: 0px;">Air Value: please clean the soil moisture sensor, wipe it off. Then write the value into the "Air value" box.</p>
 <div style="display: flex;flex-direction: column;width: 100%;margin-bottom: 20px;">
 <p style="margin-bottom: 5px;">Air value</p>
 <input type="number" id="sm-air">
 </div>
-<p style="margin-bottom: 0px;">Water Value: please dip the bottom of the sensor into a glass of water. Then write the value into the "Air value" box.</p>
+<p style="margin-bottom: 0px;">Water Value: please dip the bottom of the sensor into a glass of water. Then write the value into the "Water value" box.</p>
 <div style="display: flex;flex-direction: column;width: 100%;margin-bottom: 20px;">
 <p style="margin-bottom: 5px;">Water Value</p>
 <input type="number" id="sm-water">
@@ -67,6 +70,15 @@ const char MAIN_page[] PROGMEM = R"=====(
       if (xhr.readyState === 4) {
         if (xhr.status === 200) {
           document.getElementById("sm-value-cap").innerHTML =xhr.responseText;
+
+          var smValue =parseInt(xhr.responseText || 0);
+          var in_min = parseInt(document.getElementById("sm-air").value || 0);
+          var in_max = parseInt(document.getElementById("sm-water").value || 0);
+          var out_min = 0;
+          var out_max = 100;
+          var mapped = (smValue - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+
+          document.getElementById("sm-value-per").innerHTML =parseInt(mapped) + "%";
         } else {
           console.error(xhr.statusText);
         }
