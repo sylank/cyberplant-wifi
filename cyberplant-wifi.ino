@@ -36,6 +36,7 @@ String g_password;
 
 bool resetBtnPrestate = false;
 bool wifiStatus = false;
+bool inOperationState = true;
 
 String soilMoistureValue = "666";
 
@@ -99,7 +100,7 @@ void processSerialCommand(const String &cmd)
   {
     soilMoistureValue = getMessageElement(cmd, ';', 0).substring(1, cmd.indexOf(";"));
 
-    if (wifiStatus) {
+    if (inOperationState) {
       String hum = getMessageElement(cmd, ';', 1);
       String temp = getMessageElement(cmd, ';', 2);
 
@@ -150,6 +151,7 @@ void blinkLed(int d) {
 void configState()
 {
   Serial.println("#1!0!0!0");
+  inOperationState = false;
 
   WiFi.disconnect();
   boolean result = WiFi.softAP("CyberPlant echo - station", "");
@@ -166,6 +168,7 @@ void configState()
 
 void operationState()
 {
+  inOperationState = true;
   WiFi.softAPdisconnect(true);
   WiFi.setAutoReconnect(false);
 
@@ -175,7 +178,6 @@ void operationState()
   {
     WiFi.setAutoConnect(true);
     WiFi.setAutoReconnect(true);
-    // WiFi.persist(true)
     wifiStatusLEDTurnOFF();
   }
   else
